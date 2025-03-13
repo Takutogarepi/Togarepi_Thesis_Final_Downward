@@ -54,6 +54,15 @@ extern void dump_pattern_generation_statistics(
     const PatternInformation &pattern_info,
     utils::LogProxy &log);
 
+
+/*
+  Dump the pdb generation for single PDBS. We log size, computation time among other things.
+*/
+extern void dump_pdb_statistics(
+     const std::string &identifier,
+     utils::Duration runtime,
+     const PatternInformation &pattern_info,
+     utils::LogProxy &log);
 /*
   Compute and dump the number of patterns, the total size of the corresponding
   PDBs, and the runtime used for computing the collection. All output is

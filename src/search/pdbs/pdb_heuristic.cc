@@ -5,6 +5,11 @@
 #include "../plugins/plugin.h"
 #include "../utils/markup.h"
 
+#include "utils.h"
+#include "../utils/logging.h"
+#include "../utils/timer.h"
+
+#include <iostream>
 #include <limits>
 #include <memory>
 
@@ -13,8 +18,16 @@ using namespace std;
 namespace pdbs {
 static shared_ptr<PatternDatabase> get_pdb_from_generator(
     const shared_ptr<AbstractTask> &task,
-    const shared_ptr<PatternGenerator> &pattern_generator) {
+    const shared_ptr<PatternGenerator> &pattern_generator,utils::LogProxy &log) {
+    utils::Timer timer;
+     if (log.is_at_least_normal()){
+         log << "Initializing PDB heuristic..." << endl;
+     }
     PatternInformation pattern_info = pattern_generator->generate(task);
+
+    dump_pdb_statistics(
+        "PDB heuristic", timer(), pattern_info, log);
+        
     return pattern_info.get_pdb();
 }
 
@@ -23,7 +36,7 @@ PDBHeuristic::PDBHeuristic(
     const shared_ptr<AbstractTask> &transform, bool cache_estimates,
     const string &description, utils::Verbosity verbosity)
     : Heuristic(transform, cache_estimates, description, verbosity),
-      pdb(get_pdb_from_generator(task, pattern)) {
+      pdb(get_pdb_from_generator(task, pattern,log)) {
 }
 
 int PDBHeuristic::compute_heuristic(const State &ancestor_state) {
