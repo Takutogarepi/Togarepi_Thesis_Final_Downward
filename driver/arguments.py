@@ -101,7 +101,8 @@ Examples:
 {_format_examples(EXAMPLES)}
 """
 
-COMPONENTS_PLUS_OVERALL = ["translate", "search", "validate", "overall"]
+#COMPONENTS_PLUS_OVERALL = ["translate", "search", "validate", "overall"]
+COMPONENTS_PLUS_OVERALL = ["translate","h2_preprocessor", "search", "validate", "overall"] #added h2-preprocessor
 DEFAULT_SAS_FILE = Path("output.sas")
 
 
@@ -215,7 +216,7 @@ def _set_components_automatically(parser, args):
     if len(args.filenames) == 1 and _looks_like_search_input(args.filenames[0]):
         args.components = ["search"]
     else:
-        args.components = ["translate", "search"]
+        args.components = ["translate","h2_preprocessor","search"]#added h2_preprocessor
 
 
 def _set_components_and_inputs(parser, args):
