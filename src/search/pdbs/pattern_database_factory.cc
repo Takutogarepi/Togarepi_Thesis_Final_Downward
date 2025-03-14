@@ -331,7 +331,7 @@ void PatternDatabaseFactory::compute_distances(
             sort(i.begin(), i.end());
             sorted_fd_invariants.push_back(i);
     }
-    cout << "sorted_fd_invariants size: " << sorted_fd_invariants.size() << endl;
+    
 
     vector<FactPair> preconditions_vector; 
     preconditions_vector.reserve(task_proxy.get_variables().size());
