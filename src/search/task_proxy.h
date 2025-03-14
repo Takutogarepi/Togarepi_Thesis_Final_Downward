@@ -724,6 +724,10 @@ public:
         return create_state(std::move(state_values));
     }
 
+    std::vector<std::vector<FactPair>> get_invariant_groups() const{
+        return task->get_invariant_groups();
+    }
+
     const causal_graph::CausalGraph &get_causal_graph() const;
 };
 

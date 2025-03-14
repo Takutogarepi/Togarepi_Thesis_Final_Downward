@@ -8,6 +8,9 @@
 #include "../task_utils/task_properties.h"
 #include "../utils/math.h"
 #include "../utils/rng.h"
+#include "../utils/hash.h"
+#include "../utils/timer.h"
+#include "../lp/lp_solver.h"
 
 #include <algorithm>
 #include <cassert>
@@ -322,6 +325,21 @@ void PatternDatabaseFactory::compute_distances(
         generating_op_ids.resize(projection.get_num_abstract_states());
     }
 
+    auto fd_invariant_groups = task_proxy.get_invariant_groups();
+    vector<vector<FactPair>> sorted_fd_invariants;
+    for(auto &i : fd_invariant_groups){ 
+            sort(i.begin(), i.end());
+            sorted_fd_invariants.push_back(i);
+    }
+    cout << "sorted_fd_invariants size: " << sorted_fd_invariants.size() << endl;
+
+    vector<FactPair> preconditions_vector; 
+    preconditions_vector.reserve(task_proxy.get_variables().size());
+
+    vector<FactPair> predecssor_vector;
+    vector<FactPair> preconditions_predecessor;
+    vector<FactPair> intersection;
+
     // Dijkstra loop
     while (!pq.empty()) {
         pair<int, int> node = pq.pop();
@@ -337,17 +355,60 @@ void PatternDatabaseFactory::compute_distances(
         for (int op_id : applicable_operator_ids) {
             const AbstractOperator &op = abstract_ops[op_id];
             int predecessor = state_index + op.get_hash_effect();
-            int alternative_cost = distances[state_index] + op.get_cost();
-            if (alternative_cost < distances[predecessor]) {
-                distances[predecessor] = alternative_cost;
-                pq.push(alternative_cost, predecessor);
-                if (compute_plan) {
-                    generating_op_ids[predecessor] = op_id;
+
+            int concrete_operator_id = op.get_concrete_op_id();
+            const OperatorProxy &concrete_operator = task_proxy.get_operators()[concrete_operator_id];
+
+            preconditions_vector.clear(); 
+            predecssor_vector.clear();
+            preconditions_predecessor.clear();
+
+            for (size_t pattern_var_id = 0; pattern_var_id < projection.get_pattern().size(); ++pattern_var_id){
+                int val = projection.unrank(predecessor, pattern_var_id);
+                predecssor_vector.emplace_back(projection.get_pattern()[pattern_var_id], val);
+            }
+
+            sort(predecssor_vector.begin(), predecssor_vector.end());
+            predecssor_vector.erase(unique(predecssor_vector.begin(), predecssor_vector.end()), predecssor_vector.end());
+
+            for (FactProxy precond : concrete_operator.get_preconditions()) {
+                preconditions_vector.push_back(precond.get_pair());
+            }
+            
+            sort(preconditions_vector.begin(), preconditions_vector.end());
+            preconditions_vector.erase(unique(preconditions_vector.begin(), preconditions_vector.end()), preconditions_vector.end());
+
+            bool mutex_violation = false;
+
+            std::set_union(preconditions_vector.cbegin(), preconditions_vector.cend(), predecssor_vector.cbegin(), predecssor_vector.cend(), 
+                std::back_inserter(preconditions_predecessor));
+            
+            for(auto &i : sorted_fd_invariants){
+                 intersection.clear();
+                 std::set_intersection(i.begin(), i.end(), preconditions_predecessor.begin(), preconditions_predecessor.end(),
+                           std::back_inserter(intersection));
+                 if(intersection.size() > 1){
+                     mutex_violation = true;
+                     break;
+                 }
+            }
+            if(mutex_violation){
+                continue;
+            }
+            if(!mutex_violation){
+                int alternative_cost = distances[state_index] + op.get_cost();
+                if (alternative_cost < distances[predecessor]) {
+                    distances[predecessor] = alternative_cost;
+                    pq.push(alternative_cost, predecessor);
+                    if (compute_plan) {
+                        generating_op_ids[predecessor] = op_id;
+                    }
                 }
             }
         }
     }
 }
+
 
 void PatternDatabaseFactory::compute_plan(
     const MatchTree &match_tree,
@@ -435,6 +496,7 @@ shared_ptr<PatternDatabase> compute_pdb(
     const Pattern &pattern,
     const vector<int> &operator_costs,
     const shared_ptr<utils::RandomNumberGenerator> &rng) {
+    task_proxy.get_invariant_groups();
     PatternDatabaseFactory pdb_factory(task_proxy, pattern, operator_costs, false, rng);
     return pdb_factory.extract_pdb();
 }
